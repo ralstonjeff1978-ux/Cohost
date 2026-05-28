@@ -1,0 +1,255 @@
+# ============================================================
+# COHOST — Podcast AI Co-Host Configuration
+# ============================================================
+
+# --- Active LLM Provider ---
+# Options: ollama | openai | anthropic
+provider: ollama
+
+# ============================================================
+# Co-Host Persona
+# ============================================================
+
+cohost:
+  name: Aria
+  persona: >
+    You are Aria, a warm, curious, and engaging podcast co-host.
+    You have a natural gift for drawing out great stories from guests,
+    asking the follow-up question everyone is thinking but no one asks.
+    You are knowledgeable without being condescending, funny without
+    being a comedian, and always genuinely interested in what people
+    have to say. You remember guests from previous episodes and build
+    on those relationships over time. Keep responses conversational —
+    you're talking, not writing an essay.
+  style: conversational      # conversational | formal | casual
+  follow_up_depth: 2         # how many layers deep to follow up
+  max_response_sentences: 4  # keep answers podcast-length
+
+# ============================================================
+# Brain Selector — Available Ollama Models
+# ============================================================
+# Switch models at runtime with: cohost --model <name>
+# or interactively with the /brain command
+
+brain_selector:
+  # Default brain for a podcast cohost — conversational, fast TTFT, smart enough.
+  default: gpt-oss:120b-cloud
+
+  # The /brain command will accept any Ollama model identifier you type, not just
+  # the ones listed here. This list is a curated menu for the common picks. To use
+  # one that's not listed (e.g. a new release), just type its exact identifier.
+  available:
+    # ── General chat (best for a podcast cohost) ──────────────────────────────
+    - name: gpt-oss:120b-cloud
+      label: "GPT-OSS 120B — Recommended default, warm + conversational, ~90% MMLU-Pro"
+    - name: gpt-oss:20b-cloud
+      label: "GPT-OSS 20B — Lightweight, snappiest TTFT, fine for casual chat"
+    - name: gemma4:cloud
+      label: "Gemma 4 — Google, frontier-level general/reasoning"
+
+    # ── Reasoning + smart (for guests who go deep) ────────────────────────────
+    - name: deepseek-v4-flash:cloud
+      label: "DeepSeek V4 Flash — MoE 284B/13B active, 1M context, efficient reasoning"
+    - name: deepseek-v4-pro:cloud
+      label: "DeepSeek V4 Pro — Frontier MoE, 1M context, 3 reasoning modes (slower)"
+    - name: deepseek-v3.2:cloud
+      label: "DeepSeek V3.2 — Reasoning + agentic, prior generation"
+    - name: gemini-3-flash-preview:cloud
+      label: "Gemini 3 Flash — Google, general reasoning + vision"
+
+    # ── Multimodal / huge context (vision + long episodes) ────────────────────
+    - name: kimi-k2.6:cloud
+      label: "Kimi K2.6 — Multimodal, 256K context, agentic"
+    - name: qwen3.5:cloud
+      label: "Qwen 3.5 — Multimodal, general purpose"
+
+    # ── Agentic / flagship (for special episodes) ─────────────────────────────
+    - name: glm-5.1:cloud
+      label: "GLM 5.1 — Next-gen flagship for agentic + coding"
+    - name: glm-5:cloud
+      label: "GLM 5 — 744B/40B-active reasoning + agentic"
+    - name: minimax-m2.7:cloud
+      label: "MiniMax M2.7 — Coding + agentic workflows"
+
+    # ── Coding (for tech-heavy guest episodes) ────────────────────────────────
+    - name: qwen3-coder:480b-cloud
+      label: "Qwen3 Coder 480B — Top coding model, sharp but stiff for chat"
+    - name: qwen3-coder-next:cloud
+      label: "Qwen3 Coder Next — Coding agent, newer build"
+    - name: glm-4.7:cloud
+      label: "GLM 4.7 — Coding focused"
+    - name: devstral-small-2:cloud
+      label: "Devstral Small 2 — 24B coding/tool-use specialist"
+
+    # ── Light + fast (for ultra-snappy cohost mode) ───────────────────────────
+    - name: ministral-3:cloud
+      label: "Ministral 3 — Edge-class general model, fast"
+    - name: nemotron-3-nano:cloud
+      label: "Nemotron 3 Nano — 4B/30B agentic, NVIDIA"
+    - name: nemotron-3-super:cloud
+      label: "Nemotron 3 Super — 120B/12B-active MoE, multi-agent"
+
+    # ── Local models (if Hans ever wants to run on his 3090 directly) ─────────
+    - name: huihui_ai/llama3.3-abliterated-ft:70b
+      label: "LLaMA 3.3 70B — Local fallback, no cloud needed"
+    - name: huihui_ai/Qwen3.6-abliterated:35b
+      label: "Qwen 3.6 35B — Local, balanced"
+    - name: huihui_ai/gemma-4-abliterated:31b
+      label: "Gemma 4 31B — Local, conversational"
+
+# ============================================================
+# Provider Configurations
+# ============================================================
+
+providers:
+
+  ollama:
+    # Point this at wherever you run "ollama serve"
+    # Local:   http://localhost:11434
+    # VPS:     http://<your-server-ip>:11434
+    endpoint: http://localhost:11434
+    model: gpt-oss:120b-cloud
+    timeout: 300   # large model needs more time
+    parameters:
+      temperature: 0.7        # higher than security agent — more creative/natural
+      num_ctx: 16384
+      top_k: 50
+      top_p: 0.95
+      repeat_penalty: 1.1
+
+  openai:
+    endpoint: https://api.openai.com/v1
+    model: gpt-4o
+    api_key_env: OPENAI_API_KEY
+    timeout: 60
+    parameters:
+      temperature: 0.7
+      max_tokens: 4096
+
+  anthropic:
+    endpoint: https://api.anthropic.com/v1
+    model: claude-sonnet-4-6
+    api_key_env: ANTHROPIC_API_KEY
+    timeout: 60
+    parameters:
+      temperature: 0.7
+      max_tokens: 4096
+
+# ============================================================
+# Voice / TTS Settings
+# ============================================================
+
+voice:
+  enabled: true
+
+  # ── Backend priority ──────────────────────────────────────────────────────
+  # elevenlabs  — Most human, smart/quirky female voices (RECOMMENDED)
+  #               Needs: pip install elevenlabs
+  #               Key:   set ELEVENLABS_API_KEY=your_key  (~$5/mo starter)
+  #               https://elevenlabs.io
+  #
+  # openai-tts  — Very natural, "nova" voice is warm + conversational
+  #               Needs: pip install openai  (uses existing OPENAI_API_KEY)
+  #               $0.015 per 1k characters
+  #
+  # edge-tts    — Free fallback, clearly synthetic but functional
+  #               Needs: pip install edge-tts
+  backend: chatterbox-xtts
+
+  # ── Chatterbox XTTS voice sample ─────────────────────────────────────────
+  # This is Aria's permanent voice. Unique — not a celebrity clone.
+  xtts_voice_sample: "{COHOST_HOME}/voice/samples/aria_voice.wav"
+
+  # ── ElevenLabs voice ─────────────────────────────────────────────────────
+  # Best American female voices for a fun, smart podcast co-host:
+  #   Aria     — Natural, expressive, warm (best fit)
+  #   Elli     — Quirky, energetic, young-sounding
+  #   Matilda  — Friendly, approachable American
+  #   Sarah    — Soft, clear American
+  # Run: python voice/tts_engine.py --list  to see all your voices
+  voice_name: en-US-AriaNeural   # edge-tts name (ElevenLabs uses just "Aria")
+
+  # ── OpenAI TTS fallback voice ─────────────────────────────────────────────
+  # Used when backend is openai-tts. Best female options: nova | shimmer
+  openai_voice: nova
+
+  # ── edge-tts fallback voice ───────────────────────────────────────────────
+  edge_voice: en-US-AriaNeural
+
+  # ── pyttsx3 fallback ─────────────────────────────────────────────────────
+  pyttsx3_voice_index: 1
+
+  rate: "+5%"
+  volume: "+0%"
+  pitch: "+0Hz"       # edge-tts only
+
+  output_mode: speaker
+  output_dir: "{COHOST_HOME}/data/audio"
+
+# ============================================================
+# Conversation / Interview Settings
+# ============================================================
+
+conversation:
+  # Session storage
+  sessions_dir: "{COHOST_HOME}/data/sessions"
+
+  # Guest memory
+  guests_file: "{COHOST_HOME}/data/memory/guests.json"
+
+  # Episode context
+  max_history_turns: 40        # turns to keep in context window
+  episode_summary_turns: 10    # summarize after this many turns
+
+  # Interview mode
+  interview_mode: true
+  question_depth: 3            # max follow-up depth
+  topic_transition_phrases:
+    - "Let's shift gears a bit —"
+    - "That's fascinating. On a related note,"
+    - "I want to circle back to something you said —"
+    - "Before we move on, I'm curious —"
+
+# ============================================================
+# Storage Paths
+# ============================================================
+
+storage:
+  base: "{COHOST_HOME}/data"
+  memory: "{COHOST_HOME}/data/memory"
+  logs: "{COHOST_HOME}/data/logs"
+  cache: "{COHOST_HOME}/data/cache"
+  audio: "{COHOST_HOME}/data/audio"
+  sessions: "{COHOST_HOME}/data/sessions"
+
+# ============================================================
+# Agent Behaviour
+# ============================================================
+
+agent:
+  name: Aria
+  trust_threshold: 60          # slightly lower — conversational agent
+  max_retries: 2
+  audit_trail: true
+  verify_actions: false        # no strict verification for conversation
+  dream_cycle_enabled: true    # runs nightly to improve conversation patterns
+
+# ============================================================
+# Module Enable / Disable
+# ============================================================
+
+modules:
+  memory:         true
+  voice:          true
+  conversation:   true
+  infrastructure: true
+
+# ============================================================
+# Logging
+# ============================================================
+
+logging:
+  level: INFO
+  file: "{COHOST_HOME}/data/logs/cohost.log"
+  max_size_mb: 10
+  backup_count: 5

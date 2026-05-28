@@ -1,0 +1,24 @@
+# COHOST — Main venv dependencies
+# (voice/venv312 deps are installed separately by install/install.ps1)
+#
+# These are installed automatically by INSTALL.bat. You shouldn't need to run
+# pip install -r yourself.
+
+# Core
+requests>=2.31.0
+pyyaml>=6.0.1
+
+# Web UI
+flask>=3.0.0
+
+# Voice I/O (STT side runs in the main venv)
+sounddevice>=0.4.6
+soundfile>=0.12.1
+numpy>=1.26.0
+silero-vad>=5.0
+faster-whisper>=1.0.0
+
+# Wake-word hotkey
+keyboard>=0.13.5
+
+# Voice sample ships at: voice/samples/aria_voice.wav (relative to install root)

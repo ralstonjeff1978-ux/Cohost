@@ -1,0 +1,596 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Aria — Podcast Co-Host</title>
+<style>
+:root {
+  --bg: #0d0d0f;
+  --panel: #16161a;
+  --card: #1e1e24;
+  --border: #2a2a32;
+  --text: #e0e0e6;
+  --text-dim: #8888a0;
+  --accent: #7c5cfc;
+  --accent-glow: rgba(124,92,252,0.25);
+  --aria: #b48eff;
+  --guest: #4ecdc4;
+  --danger: #ff6b6b;
+  --success: #51cf66;
+  --warning: #ffd43b;
+  --radius: 12px;
+  --font: 'Segoe UI', system-ui, -apple-system, sans-serif;
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: var(--font); background: var(--bg); color: var(--text); height: 100vh; overflow: hidden; }
+.app { display: grid; grid-template-columns: 1fr 320px; grid-template-rows: auto 1fr auto; height: 100vh; }
+
+/* Header */
+.header { grid-column: 1 / -1; background: var(--panel); border-bottom: 1px solid var(--border); padding: 16px 24px; display: flex; align-items: center; gap: 20px; }
+.header-logo { display: flex; align-items: center; gap: 12px; }
+.logo-ring { width: 44px; height: 44px; border-radius: 50%; border: 3px solid var(--aria); display: flex; align-items: center; justify-content: center; font-size: 20px; transition: box-shadow 0.4s; }
+.logo-ring.speaking { box-shadow: 0 0 20px var(--accent-glow), 0 0 40px var(--accent-glow); animation: pulse 1.2s ease-in-out infinite; }
+.logo-ring.thinking { animation: spin 2s linear infinite; border-color: var(--warning); }
+@keyframes pulse { 0%,100%{box-shadow:0 0 12px var(--accent-glow)} 50%{box-shadow:0 0 30px var(--accent-glow),0 0 50px rgba(124,92,252,.15)} }
+@keyframes spin { 0%{border-color:var(--warning) transparent var(--warning) transparent} 50%{border-color:transparent var(--warning) transparent var(--warning)} 100%{border-color:var(--warning) transparent var(--warning) transparent} }
+.header h1 { font-size: 20px; font-weight: 600; }
+.header-sub { font-size: 13px; color: var(--text-dim); }
+.header-right { margin-left: auto; display: flex; align-items: center; gap: 12px; }
+.conn-dot { width: 10px; height: 10px; border-radius: 50%; background: var(--danger); transition: background 0.3s; flex-shrink: 0; }
+.conn-dot.connected { background: var(--success); }
+.conn-label { font-size: 11px; color: var(--text-dim); }
+.status-badge { font-size: 12px; padding: 4px 12px; border-radius: 20px; background: var(--card); border: 1px solid var(--border); text-transform: uppercase; letter-spacing: 0.5px; }
+.status-badge.idle { color: var(--success); border-color: var(--success); }
+.status-badge.thinking { color: var(--warning); border-color: var(--warning); }
+.status-badge.speaking { color: var(--aria); border-color: var(--aria); }
+
+/* Chat */
+.chat-panel { overflow-y: auto; padding: 24px; display: flex; flex-direction: column; gap: 16px; }
+.chat-panel::-webkit-scrollbar { width: 6px; }
+.chat-panel::-webkit-scrollbar-track { background: transparent; }
+.chat-panel::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+.message { max-width: 80%; padding: 14px 18px; border-radius: var(--radius); line-height: 1.6; font-size: 15px; animation: fadeIn 0.3s ease; }
+@keyframes fadeIn { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:none} }
+.message.aria { align-self: flex-start; background: linear-gradient(135deg,#1a1a2e,#1e1e30); border: 1px solid rgba(180,142,255,.2); border-left: 3px solid var(--aria); }
+.message.guest { align-self: flex-end; background: linear-gradient(135deg,#1a2e2b,#1e302d); border: 1px solid rgba(78,205,196,.2); border-right: 3px solid var(--guest); }
+.message.system { align-self: center; background: var(--card); border: 1px solid var(--border); color: var(--text-dim); font-size: 13px; text-align: center; max-width: 90%; }
+.message.error { align-self: center; background: rgba(255,107,107,.1); border: 1px solid rgba(255,107,107,.3); color: var(--danger); font-size: 13px; text-align: center; max-width: 90%; }
+.msg-label { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 6px; }
+.msg-label.aria { color: var(--aria); }
+.msg-label.guest { color: var(--guest); }
+
+/* Sidebar */
+.sidebar { background: var(--panel); border-left: 1px solid var(--border); padding: 24px; overflow-y: auto; display: flex; flex-direction: column; gap: 24px; }
+.sidebar h3 { font-size: 11px; text-transform: uppercase; letter-spacing: 1.2px; color: var(--text-dim); margin-bottom: 12px; }
+
+/* Aria orb */
+.aria-visual { text-align: center; padding: 20px 0; }
+.aria-orb { width: 120px; height: 120px; border-radius: 50%; margin: 0 auto 16px; background: radial-gradient(circle at 35% 35%,#9b72ff,#5c3d99,#2d1f4e); box-shadow: 0 0 30px rgba(155,114,255,.2); transition: all 0.5s; position: relative; }
+.aria-orb::after { content:''; position:absolute; inset:-4px; border-radius:50%; border:2px solid transparent; transition:all 0.5s; }
+.aria-orb.speaking { box-shadow:0 0 50px rgba(155,114,255,.4),0 0 80px rgba(155,114,255,.15); animation:orbPulse 1s ease-in-out infinite; }
+.aria-orb.speaking::after { border-color:var(--aria); animation:ringExpand 1.5s ease-in-out infinite; }
+.aria-orb.thinking { background:radial-gradient(circle at 35% 35%,#ffd43b,#cc8800,#4e3d00); box-shadow:0 0 40px rgba(255,212,59,.3); }
+@keyframes orbPulse { 0%,100%{transform:scale(1)} 50%{transform:scale(1.05)} }
+@keyframes ringExpand { 0%{inset:-4px;opacity:1} 100%{inset:-20px;opacity:0} }
+.aria-name { font-size: 18px; font-weight: 600; color: var(--aria); }
+.aria-mode { font-size: 13px; color: var(--text-dim); margin-top: 4px; }
+
+/* Controls */
+.control-group { display: flex; flex-direction: column; gap: 10px; }
+.toggle-row { display:flex; align-items:center; justify-content:space-between; padding:10px 14px; background:var(--card); border-radius:8px; border:1px solid var(--border); }
+.toggle-row label { font-size: 14px; }
+.toggle-row .hint { font-size: 11px; color: var(--text-dim); }
+.toggle { width:44px; height:24px; background:#333; border-radius:12px; position:relative; cursor:pointer; transition:background 0.3s; border:none; flex-shrink:0; }
+.toggle.on { background: var(--accent); }
+.toggle::after { content:''; position:absolute; width:18px; height:18px; border-radius:50%; background:white; top:3px; left:3px; transition:left 0.3s; }
+.toggle.on::after { left: 23px; }
+select { width:100%; padding:10px 14px; background:var(--card); border:1px solid var(--border); border-radius:8px; color:var(--text); font-size:14px; font-family:var(--font); cursor:pointer; }
+select:focus { outline:none; border-color:var(--accent); }
+
+/* Mic button */
+.mic-btn { width:100%; padding:14px; border:2px solid var(--guest); border-radius:var(--radius); background:transparent; color:var(--guest); font-size:16px; font-weight:600; font-family:var(--font); cursor:pointer; transition:all 0.3s; display:flex; align-items:center; justify-content:center; gap:10px; }
+.mic-btn:hover { background:rgba(78,205,196,.1); }
+.mic-btn.live { background:rgba(78,205,196,.15); border-color:var(--success); color:var(--success); animation:micPulse 2s ease-in-out infinite; }
+.mic-btn.live::before { content:''; width:10px; height:10px; border-radius:50%; background:var(--success); animation:micDot 1s ease-in-out infinite; }
+@keyframes micPulse { 0%,100%{box-shadow:none} 50%{box-shadow:0 0 20px rgba(81,207,102,.2)} }
+@keyframes micDot { 0%,100%{opacity:1} 50%{opacity:.4} }
+
+.episode-info { padding:14px; background:var(--card); border-radius:8px; border:1px solid var(--border); font-size:13px; line-height:1.8; }
+.episode-info .label { color: var(--text-dim); }
+.episode-info .value { color: var(--text); font-weight: 500; }
+
+/* Input bar */
+.input-bar { grid-column:1/-1; background:var(--panel); border-top:1px solid var(--border); padding:16px 24px; display:flex; gap:12px; align-items:center; }
+.input-bar input { flex:1; padding:14px 18px; background:var(--card); border:1px solid var(--border); border-radius:var(--radius); color:var(--text); font-size:15px; font-family:var(--font); transition:border-color 0.3s; }
+.input-bar input:focus { outline:none; border-color:var(--accent); }
+.input-bar input::placeholder { color: var(--text-dim); }
+.btn { padding:12px 20px; border:none; border-radius:var(--radius); font-size:14px; font-weight:600; cursor:pointer; transition:all 0.2s; white-space:nowrap; font-family:var(--font); }
+.btn-primary { background:var(--accent); color:white; }
+.btn-primary:hover { background:#6a4be0; }
+.btn-primary:disabled { opacity:0.5; cursor:not-allowed; }
+.btn-secondary { background:transparent; color:var(--aria); border:1px solid var(--aria); }
+.btn-secondary:hover { background:rgba(180,142,255,.1); }
+.btn-secondary:disabled { opacity:0.4; cursor:not-allowed; }
+.btn-dream { background:transparent; color:var(--warning); border:1px solid var(--warning); }
+.btn-dream:hover { background:rgba(255,212,59,.1); }
+.btn-dream:disabled { opacity:0.4; cursor:not-allowed; }
+.sidebar-buttons { display:flex; flex-direction:column; gap:8px; margin-top:auto; }
+
+/* Start screen */
+.start-overlay { position:fixed; inset:0; background:rgba(0,0,0,.85); display:flex; align-items:center; justify-content:center; z-index:100; backdrop-filter:blur(8px); }
+.start-card { background:var(--panel); border:1px solid var(--border); border-radius:16px; padding:40px; width:420px; text-align:center; }
+.start-card h2 { font-size:24px; margin-bottom:8px; }
+.start-card p { color:var(--text-dim); margin-bottom:24px; font-size:14px; }
+.start-card input, .start-card select { width:100%; padding:12px 16px; background:var(--card); border:1px solid var(--border); border-radius:8px; color:var(--text); font-size:15px; font-family:var(--font); margin-bottom:12px; }
+.start-card input:focus, .start-card select:focus { outline:none; border-color:var(--accent); }
+.start-card .btn { width:100%; padding:14px; font-size:16px; margin-top:8px; }
+</style>
+</head>
+<body>
+
+<!-- Start overlay -->
+<div class="start-overlay" id="startOverlay">
+  <div class="start-card">
+    <div style="font-size:48px;margin-bottom:16px;">🎙</div>
+    <h2>Aria</h2>
+    <p>Podcast Co-Host — powered by {{ active_brain }}</p>
+    <input type="text" id="startTitle" placeholder="Episode title">
+    <input type="text" id="startGuest" placeholder="Guest name (or leave blank)">
+    <select id="startMic"><option value="">Loading mics...</option></select>
+    <button class="btn btn-primary" onclick="startEpisode()">Start Episode</button>
+  </div>
+</div>
+
+<!-- Main app -->
+<div class="app" id="mainApp" style="display:none;">
+  <header class="header">
+    <div class="header-logo">
+      <div class="logo-ring" id="logoRing">🎙</div>
+      <div>
+        <h1>Aria</h1>
+        <div class="header-sub" id="headerSub">Podcast Co-Host</div>
+      </div>
+    </div>
+    <div class="header-right">
+      <div class="conn-dot" id="connDot"></div>
+      <span class="conn-label" id="connLabel">Off</span>
+      <span class="status-badge idle" id="statusBadge">Idle</span>
+    </div>
+  </header>
+
+  <div class="chat-panel" id="chatPanel"></div>
+
+  <div class="sidebar">
+    <div class="aria-visual">
+      <div class="aria-orb" id="ariaOrb"></div>
+      <div class="aria-name">Aria</div>
+      <div class="aria-mode" id="ariaMode">Listening</div>
+    </div>
+
+    <div>
+      <h3>Microphone</h3>
+      <button class="mic-btn" id="micBtn" onclick="toggleMic()">Start Mic</button>
+      <div style="margin-top:8px;">
+        <select id="micSelect"><option value="">Loading...</option></select>
+      </div>
+    </div>
+
+    <div>
+      <h3>Controls</h3>
+      <div class="control-group">
+        <div class="toggle-row">
+          <div><label>Free chime mode</label><div class="hint">Skip wake-word; Aria replies to every turn</div></div>
+          <button class="toggle {{ 'on' if chime_in else '' }}" id="chimeToggle" onclick="toggleChime()"></button>
+        </div>
+        <div class="toggle-row">
+          <div><label>Voice output</label><div class="hint">Speak responses aloud</div></div>
+          <button class="toggle {{ 'on' if voice_enabled else '' }}" id="voiceToggle" onclick="toggleVoice()"></button>
+        </div>
+        <div class="toggle-row" id="ariaModeRow">
+          <div><label>Aria mode</label><div class="hint" id="ariaModeHint">Say "Aria" or press Ctrl+Alt+A to invite</div></div>
+          <span class="status-badge idle" id="ariaModeBadge" style="margin:0;">Passive</span>
+        </div>
+      </div>
+    </div>
+
+    <div>
+      <h3>Brain</h3>
+      <select id="brainSelect" onchange="changeBrain()">
+        {% set local_brains = brains | selectattr('source', 'equalto', 'local') | list %}
+        {% set cloud_brains = brains | selectattr('source', 'equalto', 'cloud') | list %}
+        {% if local_brains %}
+        <optgroup label="Local (installed)">
+          {% for b in local_brains %}
+          <option value="{{ b.name }}" title="{{ b.label }}" {{ 'selected' if b.name == active_brain else '' }}>{{ b.name }}</option>
+          {% endfor %}
+        </optgroup>
+        {% endif %}
+        {% if cloud_brains %}
+        <optgroup label="Cloud">
+          {% for b in cloud_brains %}
+          <option value="{{ b.name }}" title="{{ b.label }}" {{ 'selected' if b.name == active_brain else '' }}>{{ b.name.split(':')[0] }}</option>
+          {% endfor %}
+        </optgroup>
+        {% endif %}
+      </select>
+    </div>
+
+    <div>
+      <h3>Episode</h3>
+      <div class="episode-info">
+        <div><span class="label">Title:</span> <span class="value" id="epTitle">—</span></div>
+        <div><span class="label">Guest:</span> <span class="value" id="epGuest">—</span></div>
+        <div><span class="label">Turns:</span> <span class="value" id="epTurns">0</span></div>
+      </div>
+    </div>
+
+    <div class="sidebar-buttons">
+      <button class="btn btn-secondary" id="chimeBtn" onclick="requestChime()" title="Ctrl+Alt+A">Aria, chime in</button>
+      <button class="btn btn-dream" id="dreamBtn" onclick="runDream()" {{ '' if dream_available else 'disabled title="Dream not loaded"' }}>Dream / Reflect</button>
+      <button class="btn btn-secondary" id="remoteBtn" onclick="toggleRemoteHelp()">Remote help</button>
+      <button class="btn btn-secondary" onclick="endEpisode()">End Episode</button>
+    </div>
+  </div>
+
+  <div class="input-bar">
+    <input type="text" id="msgInput" placeholder="Type or speak..." onkeydown="if(event.key==='Enter')sendText()">
+    <button class="btn btn-primary" id="sendBtn" onclick="sendText()">Send</button>
+  </div>
+</div>
+
+<script>
+let turns = 0;
+let sending = false;
+let ariaStreamDiv = null;
+let pollInterval = null;
+let micLive = false;
+let sendTimer = null;
+const SEND_TIMEOUT_MS = 120000;
+
+// ── Polling ─────────────────────────────────────────────────
+
+function startPolling() {
+  if (pollInterval) return;
+  pollInterval = setInterval(async function() {
+    try {
+      const resp = await fetch('/api/poll');
+      const msgs = await resp.json();
+      setConnected(true);
+      for (const m of msgs) handleEvent(m);
+    } catch(e) { setConnected(false); }
+  }, 800);
+}
+
+function handleEvent(data) {
+  if (data.type === 'status') {
+    setStatus(data.status);
+  } else if (data.type === 'sentence') {
+    clearSendTimer();
+    if (!ariaStreamDiv) ariaStreamDiv = startAriaMessage();
+    appendToAriaMessage(ariaStreamDiv, data.text);
+  } else if (data.type === 'done') {
+    clearSendTimer();
+    ariaStreamDiv = null;
+    resetSendState();
+    if (data.full_text) { turns++; document.getElementById('epTurns').textContent = turns; }
+  } else if (data.type === 'error') {
+    clearSendTimer();
+    ariaStreamDiv = null;
+    addMessage('error', data.text);
+    resetSendState();
+  } else if (data.type === 'system') {
+    addMessage('system', data.text);
+  } else if (data.type === 'heard') {
+    addMessage('guest', data.text);
+    turns++;
+    document.getElementById('epTurns').textContent = turns;
+  } else if (data.type === 'mic_state') {
+    updateMicBtn(data.state);
+  } else if (data.type === 'aria_mode') {
+    updateAriaMode(data.mode);
+  }
+}
+
+function updateAriaMode(mode) {
+  const badge = document.getElementById('ariaModeBadge');
+  const hint = document.getElementById('ariaModeHint');
+  if (!badge) return;
+  if (mode === 'active') {
+    badge.className = 'status-badge speaking';
+    badge.textContent = 'Active';
+    hint.textContent = '90s window — Aria will chime in';
+  } else if (mode === 'cooldown') {
+    badge.className = 'status-badge thinking';
+    badge.textContent = 'Cooldown';
+    hint.textContent = '180s cooldown — only wake-word reopens';
+  } else {
+    badge.className = 'status-badge idle';
+    badge.textContent = 'Passive';
+    hint.textContent = 'Say "Aria" or press Ctrl+Alt+A to invite';
+  }
+}
+
+// ── Connection indicator ────────────────────────────────────
+
+function setConnected(yes) {
+  const dot = document.getElementById('connDot');
+  const lbl = document.getElementById('connLabel');
+  dot.className = 'conn-dot' + (yes ? ' connected' : '');
+  lbl.textContent = yes ? 'Live' : 'Off';
+}
+
+// ── Status ──────────────────────────────────────────────────
+
+function setStatus(s) {
+  const badge = document.getElementById('statusBadge');
+  const orb = document.getElementById('ariaOrb');
+  const ring = document.getElementById('logoRing');
+  const mode = document.getElementById('ariaMode');
+  badge.className = 'status-badge ' + s;
+  badge.textContent = s.charAt(0).toUpperCase() + s.slice(1);
+  orb.className = 'aria-orb ' + s;
+  ring.className = 'logo-ring ' + s;
+  if (s === 'speaking') mode.textContent = 'Speaking';
+  else if (s === 'thinking') mode.textContent = 'Thinking...';
+  else mode.textContent = micLive ? 'Listening' : 'Idle';
+}
+
+// ── Timeout recovery ────────────────────────────────────────
+
+function startSendTimer() {
+  clearSendTimer();
+  sendTimer = setTimeout(function() {
+    addMessage('error', 'Aria took too long. Try again.');
+    ariaStreamDiv = null;
+    resetSendState();
+  }, SEND_TIMEOUT_MS);
+}
+function clearSendTimer() { if (sendTimer) { clearTimeout(sendTimer); sendTimer = null; } }
+function resetSendState() {
+  sending = false;
+  document.getElementById('sendBtn').disabled = false;
+  document.getElementById('chimeBtn').disabled = false;
+  document.getElementById('dreamBtn').disabled = false;
+}
+
+// ── Messages ────────────────────────────────────────────────
+
+function startAriaMessage() {
+  const panel = document.getElementById('chatPanel');
+  const div = document.createElement('div');
+  div.className = 'message aria';
+  div.innerHTML = '<div class="msg-label aria">Aria</div><span class="msg-body"></span>';
+  panel.appendChild(div);
+  panel.scrollTop = panel.scrollHeight;
+  return div;
+}
+function appendToAriaMessage(div, sentence) {
+  const body = div.querySelector('.msg-body');
+  if (body.textContent) body.textContent += ' ';
+  body.textContent += sentence;
+  document.getElementById('chatPanel').scrollTop = document.getElementById('chatPanel').scrollHeight;
+}
+function addMessage(role, text) {
+  const panel = document.getElementById('chatPanel');
+  const div = document.createElement('div');
+  const labelClass = role === 'aria' ? 'aria' : (role === 'guest' ? 'guest' : '');
+  const labelName = role === 'aria' ? 'Aria' : (role === 'guest' ? (document.getElementById('epGuest').textContent || 'Guest') : '');
+  div.className = 'message ' + role;
+  if (labelName) {
+    div.innerHTML = '<div class="msg-label ' + labelClass + '">' + labelName + '</div>' + escapeHtml(text);
+  } else {
+    div.textContent = text;
+  }
+  panel.appendChild(div);
+  panel.scrollTop = panel.scrollHeight;
+}
+function escapeHtml(t) { const d = document.createElement('div'); d.textContent = t; return d.innerHTML; }
+
+// ── Mic ─────────────────────────────────────────────────────
+
+function updateMicBtn(state) {
+  const btn = document.getElementById('micBtn');
+  if (state === 'off' || !state) {
+    micLive = false;
+    btn.className = 'mic-btn';
+    btn.textContent = 'Start Mic';
+  } else if (state === 'listening') {
+    micLive = true;
+    btn.className = 'mic-btn live';
+    btn.textContent = 'Listening...';
+  } else if (state === 'heard') {
+    micLive = true;
+    btn.className = 'mic-btn live';
+    btn.style.borderColor = 'var(--warning)';
+    btn.style.color = 'var(--warning)';
+    btn.textContent = 'Heard you — transcribing...';
+  } else if (state === 'transcribed') {
+    micLive = true;
+    btn.className = 'mic-btn live';
+    btn.style.borderColor = '';
+    btn.style.color = '';
+    btn.textContent = 'Listening...';
+  }
+}
+
+async function toggleMic() {
+  if (micLive) {
+    await fetch('/api/mic/stop', {method:'POST'});
+    updateMicBtn('off');
+  } else {
+    const device = document.getElementById('micSelect').value;
+    if (!device && device !== '0') { addMessage('error','Select a microphone first.'); return; }
+    const resp = await fetch('/api/mic/start', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({device:parseInt(device)})});
+    const data = await resp.json();
+    if (data.error) { addMessage('error', data.error); } else { updateMicBtn('listening'); }
+  }
+}
+
+// ── Actions ─────────────────────────────────────────────────
+
+async function startEpisode() {
+  const title = document.getElementById('startTitle').value || 'Untitled';
+  const guest = document.getElementById('startGuest').value || '';
+  const mic = document.getElementById('startMic').value;
+  document.getElementById('startOverlay').style.display = 'none';
+  document.getElementById('mainApp').style.display = 'grid';
+  document.getElementById('epTitle').textContent = title;
+  document.getElementById('epGuest').textContent = guest || 'Solo';
+  document.getElementById('headerSub').textContent = title + (guest ? ' with ' + guest : '');
+  // Copy mic selection to sidebar
+  document.getElementById('micSelect').value = mic;
+
+  startPolling();
+  setStatus('thinking');
+
+  try {
+    const resp = await fetch('/api/start', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({title, guest})});
+    const data = await resp.json();
+    if (data.opening) addMessage('aria', data.opening);
+  } catch(e) { addMessage('error', 'Error: ' + e); }
+
+  // Auto-start mic if one was selected
+  if (mic) {
+    try {
+      await fetch('/api/mic/start', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({device:parseInt(mic)})});
+      updateMicBtn('listening');
+    } catch(e) { addMessage('error', 'Mic start failed: ' + e); }
+  }
+
+  document.getElementById('msgInput').focus();
+}
+
+async function sendText() {
+  if (sending) return;
+  const input = document.getElementById('msgInput');
+  const text = input.value.trim();
+  if (!text) return;
+  input.value = '';
+  addMessage('guest', text);
+  sending = true;
+  document.getElementById('sendBtn').disabled = true;
+  try {
+    const resp = await fetch('/api/send', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({text})});
+    const data = await resp.json();
+    if (data.error) { addMessage('error', data.error); resetSendState(); }
+    else if (!data.auto_respond) { resetSendState(); }
+    else { startSendTimer(); }
+  } catch(e) { addMessage('error', 'Error: ' + e); resetSendState(); }
+}
+
+async function requestChime() {
+  if (sending) return;
+  sending = true;
+  document.getElementById('chimeBtn').disabled = true;
+  try {
+    const resp = await fetch('/api/chime', {method:'POST'});
+    const data = await resp.json();
+    if (data.error) { addMessage('error', data.error); resetSendState(); }
+    else { startSendTimer(); }
+  } catch(e) { addMessage('error', 'Error: ' + e); resetSendState(); }
+}
+
+async function runDream() {
+  if (sending) return;
+  sending = true;
+  document.getElementById('dreamBtn').disabled = true;
+  try {
+    const resp = await fetch('/api/dream', {method:'POST'});
+    const data = await resp.json();
+    if (data.error) { addMessage('error', data.error); resetSendState(); }
+  } catch(e) { addMessage('error', 'Dream error: ' + e); resetSendState(); }
+}
+
+async function toggleChime() {
+  const resp = await fetch('/api/toggle_chime', {method:'POST'});
+  const data = await resp.json();
+  document.getElementById('chimeToggle').className = 'toggle' + (data.chime_in ? ' on' : '');
+  addMessage('system', 'Aria mode: ' + data.mode);
+}
+
+async function toggleVoice() {
+  const resp = await fetch('/api/toggle_voice', {method:'POST'});
+  const data = await resp.json();
+  document.getElementById('voiceToggle').className = 'toggle' + (data.voice_enabled ? ' on' : '');
+}
+
+async function changeBrain() {
+  const model = document.getElementById('brainSelect').value;
+  const resp = await fetch('/api/brain', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({model})});
+  const data = await resp.json();
+  addMessage('system', data.result || 'Brain changed');
+}
+
+let remoteActive = false;
+async function toggleRemoteHelp() {
+  const btn = document.getElementById('remoteBtn');
+  if (remoteActive) {
+    if (!confirm('Stop remote access tunnel?')) return;
+    await fetch('/api/remote-help/stop', {method:'POST'});
+    remoteActive = false;
+    btn.textContent = 'Remote help';
+    addMessage('system', 'Remote tunnel stopped.');
+    return;
+  }
+  if (!confirm('Open a temporary public tunnel so cypherstone can connect? (1-hour limit)')) return;
+  btn.disabled = true;
+  btn.textContent = 'Starting tunnel...';
+  try {
+    const resp = await fetch('/api/remote-help/start', {method:'POST'});
+    const data = await resp.json();
+    if (data.error) {
+      addMessage('error', 'Remote help: ' + data.error);
+      btn.textContent = 'Remote help';
+    } else {
+      remoteActive = true;
+      btn.textContent = 'Stop remote';
+      addMessage('system', '✅ Remote tunnel active. Read these to cypherstone:');
+      addMessage('system', 'URL:  ' + data.url);
+      addMessage('system', 'Code: ' + data.code);
+      addMessage('system', '(One-time use. Tunnel closes in 1 hour.)');
+    }
+  } catch(e) {
+    addMessage('error', 'Remote help failed: ' + e);
+    btn.textContent = 'Remote help';
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+async function endEpisode() {
+  if (!confirm('End this episode?')) return;
+  await fetch('/api/mic/stop', {method:'POST'});
+  updateMicBtn('off');
+  if (pollInterval) { clearInterval(pollInterval); pollInterval = null; }
+  setConnected(false);
+  const resp = await fetch('/api/end', {method:'POST'});
+  const data = await resp.json();
+  addMessage('system', 'Episode ended. ' + (data.summary || ''));
+  document.getElementById('startOverlay').style.display = 'flex';
+  document.getElementById('mainApp').style.display = 'none';
+  turns = 0;
+}
+
+// ── Load mics on page load ──────────────────────────────────
+
+async function loadMics() {
+  try {
+    const resp = await fetch('/api/mics');
+    const mics = await resp.json();
+    const targets = [document.getElementById('startMic'), document.getElementById('micSelect')];
+    for (const sel of targets) {
+      sel.innerHTML = '<option value="">Select microphone...</option>';
+      for (const m of mics) {
+        const opt = document.createElement('option');
+        opt.value = m.index;
+        opt.textContent = m.name;
+        sel.appendChild(opt);
+      }
+    }
+  } catch(e) {}
+}
+loadMics();
+</script>
+</body>
+</html>

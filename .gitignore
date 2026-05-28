@@ -1,0 +1,50 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+
+# Venvs (created by INSTALL.bat on the target machine)
+.venv/
+voice/venv312/
+venv/
+env/
+
+# Runtime data
+data/sessions/
+data/audio/
+data/logs/
+data/cache/
+data/memory/
+data/improvements/
+data/miopen_cache/
+
+# Install artifacts
+install/install_log.txt
+install/selftest_report.txt
+install/gpu_backend.txt
+
+# OS / editor
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+.vscode/
+.idea/
+
+# Secrets
+.env
+*.env
+secrets.yaml
+*_api_key*
+
+# Build / dist
+build/
+dist/
+*.egg-info/
+
+# Voice working files — only aria_voice.wav ships
+voice/samples/elena_raw.wav
+voice/samples/demo_output.wav
+voice/samples/cohost_voice.wav
